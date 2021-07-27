@@ -1,23 +1,83 @@
-use petgraph::algo::{dijkstra, min_spanning_tree};
 use petgraph::graph::{EdgeIndex, NodeIndex};
 use petgraph::visit::EdgeRef;
 use petgraph::{Graph, Undirected};
-use std::collections::{HashSet, VecDeque};
+use std::collections::HashSet;
 
 fn main() {
-    let mut graph = init3();
+    let graph = init();
     println!("{:?}", graph);
-    // let graph = init2();
-    // println!("{:?}", graph);
+    let paths = path_sum(&graph);
+    println!("{}", paths.len());
+    let mut max = 0;
+    for p in paths {
+        let mut path = 0;
+        let mut last = p.len();
+        if last <= 1 {
+            continue;
+        }
+        last -= 1;
+        while p[last] != 0 {
+            last -= 1;
+        }
+        if last <= 1 {
+            continue;
+        }
+        for x in 0..last {
+            let edge = graph.find_edge(NodeIndex::new(p[x]), NodeIndex::new(p[x + 1]));
+            if let Some(e) = edge {
+                if let Some(&weight) = graph.edge_weight(e) {
+                    path += weight;
+                }
+            }
+        }
+        if path > max {
+            max = path;
+        }
+        //        println!("p = {:?}, path = {}", p, path);
+    }
+    println!("max path = {}", max);
+}
 
-    // let nbs = graph.neighbors(NodeIndex::new(5));
-    // nbs.into_iter().for_each(|x| println!("{:?}", x));
-    // let edges = graph.edges(NodeIndex::new(5));
-    // edges.into_iter().for_each(|x| println!("{:?}", x.id()));
-    // let node_map = dijkstra(&graph, NodeIndex::new(0), Some(NodeIndex::new(1)), |edge_ref| 1);
-    // println!("{:?}", node_map);
-    let longest = longest_path(&mut graph);
-    println!("{}", longest);
+fn path_sum(graph: &Graph<char, i32, Undirected, u32>) -> Vec<Vec<usize>> {
+    fn dfs(
+        graph: &Graph<char, i32, Undirected, u32>,
+        start_node: usize,
+        visited_edge: &mut HashSet<usize>,
+        curr_path: &mut Vec<usize>,
+        ans: &mut Vec<Vec<usize>>,
+    ) {
+        // let curr_edges: Vec<usize> = vec![];
+
+        let start_edges = graph.edges(NodeIndex::new(start_node));
+        let edge_ids: HashSet<usize> = start_edges.map(|e| e.id().index()).collect();
+        if visited_edge.is_superset(&edge_ids) {
+            let mut v = curr_path.clone();
+            v.push(start_node);
+            ans.push(v.to_vec());
+            return;
+        }
+        let mut set: HashSet<usize> = HashSet::<usize>::new();
+        for x in edge_ids {
+            if !visited_edge.contains(&x) {
+                set.insert(x);
+            }
+        }
+        curr_path.push(start_node);
+        for &e in &set {
+            let next = next_node(&graph, e, start_node);
+            visited_edge.insert(e);
+            dfs(&graph, next, visited_edge, curr_path, ans);
+            visited_edge.remove(&e);
+        }
+        curr_path.pop();
+    }
+    let mut ans = vec![];
+    let mut visited_edge = HashSet::<usize>::new();
+    let mut curr_path = vec![];
+
+    dfs(&graph, 0, &mut visited_edge, &mut curr_path, &mut ans);
+
+    ans
 }
 
 fn next_node(graph: &Graph<char, i32, Undirected, u32>, edge_id: usize, curr: usize) -> usize {
@@ -31,44 +91,6 @@ fn next_node(graph: &Graph<char, i32, Undirected, u32>, edge_id: usize, curr: us
             }
         }
     }
-}
-
-fn longest_path(graph: &mut Graph<char, i32, Undirected, u32>) -> u32 {
-    if graph.node_count() <= 2 || graph.edge_count() < 1 {
-        return 0;
-    }
-    let start: usize = 0;
-
-    let mut start_edges = graph.edges(NodeIndex::new(start as usize));
-    for edge in start_edges {
-        println!("========");
-        let mut visited = Vec::<usize>::new();
-        let mut stack = VecDeque::<usize>::new();
-        let mut stack_of_node = VecDeque::<usize>::new();
-        stack_of_node.push_back(start);
-
-        stack_of_node.push_back(next_node(&graph, edge.id().index(), start));
-        stack.push_back(edge.id().index());
-        while !stack.is_empty() {
-            let e = stack.pop_back().unwrap();
-            let this_node = stack_of_node.pop_back().unwrap();
-            // let this_node = next_node(&graph, e, start);
-            if !visited.contains(&e) {
-                visited.push(e);
-                for x in graph.edges(NodeIndex::new(this_node)) {
-                    let id = x.id().index();
-                    stack.push_back(id);
-                    stack_of_node.push_back(next_node(&graph, id, this_node));
-                }
-            } else {
-                // println!("{:?}", &stack_of_node);
-            }
-            println!("visited: {:?}", &visited);
-            println!("stack: {:?}", &stack);
-            println!("node: {:?}", &stack_of_node);
-        }
-    }
-    0
 }
 
 fn init() -> Graph<char, i32, Undirected, u32> {
@@ -87,7 +109,7 @@ fn init() -> Graph<char, i32, Undirected, u32> {
         (vertx_a, vertx_d, 4),
         (vertx_a, vertx_e, 3),
         (vertx_b, vertx_c, 4),
-        (vertx_b, vertx_f, 5),
+        (vertx_b, vertx_f, 3),
         (vertx_c, vertx_d, 5),
         (vertx_c, vertx_g, 3),
         (vertx_d, vertx_h, 3),
@@ -100,6 +122,7 @@ fn init() -> Graph<char, i32, Undirected, u32> {
     graph
 }
 
+/*
 fn init2() -> Graph<char, i32, Undirected, u32> {
     Graph::<char, i32, Undirected>::from_edges(&[
         (0, 1, 5),
@@ -126,3 +149,15 @@ fn init3() -> Graph<char, i32, Undirected, u32> {
         (1, 2, 16),
     ])
 }
+
+fn init4() -> Graph<char, i32, Undirected, u32> {
+    Graph::<char, i32, Undirected>::from_edges(&[
+        (0, 1, 1),
+        (1, 2, 2),
+        (1, 3, 4),
+        (2, 4, 8),
+        (2, 5, 16),
+        (5, 0, 32),
+    ])
+}
+*/
