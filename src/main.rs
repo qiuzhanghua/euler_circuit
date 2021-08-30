@@ -23,6 +23,9 @@ fn main() {
             continue;
         }
         for x in 0..last {
+            // find_edge means not support multi edges between 2 node,
+            // otherwise I should write another crate to support this,
+            // or trace curr_edges as line 52
             let edge = graph.find_edge(NodeIndex::new(p[x]), NodeIndex::new(p[x + 1]));
             if let Some(e) = edge {
                 if let Some(&weight) = graph.edge_weight(e) {
